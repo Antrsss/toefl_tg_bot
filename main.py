@@ -1,17 +1,19 @@
 import telebot
 from telebot import types
-from reading.reading import start_reading_test, handle_reading_answer
-from listening.listening import start_listening_test, handle_listening_answer
+from reading.reading import ReadingTest
+from listening.listening import ListeningTest
 
 bot = telebot.TeleBot('7507944869:AAFQZKisWbLinpBAB2DDCIFBtwtCdjexPb8')
 
-handle_reading_answer(bot)
-handle_listening_answer(bot)
+# Создаем экземпляры тестов для каждого пользователя
+user_tests = {}
+
 
 @bot.message_handler(content_types=['text'])
 def start(message):
     bot.send_message(message.from_user.id, 'Привет! Я бот для прохождения экзамена TOEFL.')
     send_test_type(message)
+
 
 def send_test_type(message):
     keyboard = types.InlineKeyboardMarkup()
@@ -21,16 +23,30 @@ def send_test_type(message):
     keyboard.add(types.InlineKeyboardButton(text='Writing', callback_data='writing'))
     bot.send_message(message.chat.id, 'Выберите тип теста:', reply_markup=keyboard)
 
-@bot.callback_query_handler(func=lambda call: True)
+
+@bot.callback_query_handler(func=lambda call: call.data in ["reading", "listening", "speaking", "writing"])
 def callback_worker(call):
+    chat_id = call.message.chat.id
+
     if call.data == "reading":
-        start_reading_test(call.message, bot)
+        user_tests[chat_id] = ReadingTest(bot)
+        user_tests[chat_id].start_test(call.message)
     elif call.data == "listening":
-        start_listening_test(call.message, bot)
+        user_tests[chat_id] = ListeningTest(bot)
+        user_tests[chat_id].start_test(call.message)
     elif call.data == "speaking":
-        bot.send_message(call.message.chat.id, "Speaking пока не реализован.")
+        bot.send_message(chat_id, "Speaking пока не реализован.")
     elif call.data == "writing":
-        bot.send_message(call.message.chat.id, "Writing пока не реализован.")
+        bot.send_message(chat_id, "Writing пока не реализован.")
+
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith('answer_') or call.data.startswith('listen_answer_'))
+def handle_all_answers(call):
+    chat_id = call.message.chat.id
+    if chat_id in user_tests:
+        user_tests[chat_id].handle_answer(call)
+
 
 if __name__ == '__main__':
+    bot.remove_webhook()
     bot.polling(none_stop=True)
