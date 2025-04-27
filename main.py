@@ -47,6 +47,27 @@ def handle_all_answers(call):
         user_tests[chat_id].handle_answer(call)
 
 
+########################################## VLAD INSERT FOR READING ########################################## START
+
+@bot.callback_query_handler(func=lambda call: call.data == "confirm")
+def handle_confirm(call):
+    chat_id = call.message.chat.id
+    if chat_id in user_tests:
+        user_tests[chat_id].handle_confirm(call)
+
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("q:"))
+def handle_reading_answer(call):
+    chat_id = call.message.chat.id
+    if chat_id in user_tests:
+        user_tests[chat_id].handle_answer(call)
+    
+
+    # Здесь можно добавить проверку правильности и вывод баллов, если нужно
+
+########################################## VLAD INSERT FOR READING ########################################## END
+
+
 if __name__ == '__main__':
     bot.remove_webhook()
     bot.polling(none_stop=True)
