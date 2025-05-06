@@ -12,6 +12,61 @@ class ReadingTest:
         self.timer_threads = {}  # тут будут храниться потоки таймера для каждого чата
         self.test_duration = 2 * 60  # например, 5 минут теста (можешь поставить своё)
 
+    def calculate_results(self, chat_id):
+        correct_count = 0
+        total_questions = len(self.questions)
+        results = []
+
+        for idx, (user_answer, question) in enumerate(zip(self.user_answers[chat_id], self.questions)):
+            is_multiple = question.get("multiple_answers", False)
+            correct_answer = question["correct"]
+
+            if is_multiple:
+                # Для вопросов с множественным выбором
+                user_correct = set(user_answer) == set(correct_answer) if user_answer else False
+            else:
+                # Для вопросов с одним ответом
+                user_correct = user_answer == correct_answer if user_answer is not None else False
+
+            if user_correct:
+                correct_count += 1
+
+            results.append({
+                "question": idx + 1,
+                "user_answer": user_answer,
+                "correct_answer": correct_answer,
+                "is_correct": user_correct
+            })
+
+        score = (correct_count / total_questions) * 100 if total_questions > 0 else 0
+        return results, score, correct_count, total_questions
+
+    def show_results(self, chat_id):
+        results, score, correct_count, total_questions = self.calculate_results(chat_id)
+
+        result_text = f"📊 Результаты теста:\n\n"
+        result_text += f"✅ Правильных ответов: {correct_count}/{total_questions}\n"
+        result_text += f"🔢 Процент правильных: {score:.1f}%\n\n"
+        result_text += "Подробные результаты:\n"
+
+        for result in results:
+            question = self.questions[result["question"] - 1]
+            user_ans = result["user_answer"]
+            correct_ans = result["correct_answer"]
+
+            if isinstance(user_ans, list):  # Множественный выбор
+                user_selected = ", ".join([question["options"][i] for i in user_ans]) if user_ans else "Нет ответа"
+                correct_selected = ", ".join([question["options"][i] for i in correct_ans])
+            else:  # Одиночный выбор
+                user_selected = question["options"][user_ans] if user_ans is not None else "Нет ответа"
+                correct_selected = question["options"][correct_ans]
+
+            result_text += f"\n❓ Вопрос {result['question']}:\n"
+            result_text += f"   Ваш ответ: {'✅' if result['is_correct'] else '❌'} {user_selected}\n"
+            if not result['is_correct']:
+                result_text += f"   Правильный ответ: {correct_selected}\n"
+
+        self.bot.send_message(chat_id, result_text)
 
     def start_test(self, message):
         chat_id = message.chat.id
@@ -19,7 +74,7 @@ class ReadingTest:
         self.user_messages[chat_id] = []
 
         # Отправка PDF
-        with open('reading/reading_passage.pdf', 'rb') as f:
+        with open('reading/texts.docx', 'rb') as f:
             self.bot.send_document(chat_id, f)
 
         # Отправляем вопросы
@@ -51,7 +106,6 @@ class ReadingTest:
         timer_thread.start()
         self.timer_threads[chat_id] = timer_thread
 
-
     def handle_answer(self, call):
         chat_id = call.message.chat.id
         if chat_id not in self.user_answers or chat_id not in self.user_messages:
@@ -63,21 +117,43 @@ class ReadingTest:
         q_idx = int(q_idx)
         option_idx = int(option_idx)
 
-        # Проверка: если выбран уже этот же вариант — ничего не меняем
-        if len(self.user_answers[chat_id]) > q_idx and self.user_answers[chat_id][q_idx] == option_idx:
-            self.bot.answer_callback_query(call.id, text="Этот вариант уже выбран ✅")
-            return
-
-        # Сохраняем выбор
+        # Инициализируем список ответов для вопроса, если его еще нет
         while len(self.user_answers[chat_id]) <= q_idx:
-            self.user_answers[chat_id].append(None)
-        self.user_answers[chat_id][q_idx] = option_idx
+            self.user_answers[chat_id].append([] if self.questions[q_idx].get("multiple_answers", False) else None)
+
+        # Проверяем, является ли вопрос с множественным выбором
+        is_multiple = self.questions[q_idx].get("multiple_answers", False)
+
+        if is_multiple:
+            # Для вопросов с множественным выбором
+            current_answers = self.user_answers[chat_id][q_idx]
+
+            # Добавляем или удаляем выбранный вариант
+            if option_idx in current_answers:
+                current_answers.remove(option_idx)
+            else:
+                current_answers.append(option_idx)
+        else:
+            # Для обычных вопросов с одним ответом
+            # Проверка: если выбран уже этот же вариант — ничего не меняем
+            if self.user_answers[chat_id][q_idx] == option_idx:
+                self.bot.answer_callback_query(call.id, text="Этот вариант уже выбран ✅")
+                return
+
+            # Сохраняем выбор
+            self.user_answers[chat_id][q_idx] = option_idx
 
         # Обновляем клавиатуру
         q = self.questions[q_idx]
         markup = types.InlineKeyboardMarkup()
         for i, option in enumerate(q["options"]):
-            text = f"🔵 {option} (выбрано)" if i == option_idx else option
+            if is_multiple:
+                # Для множественного выбора показываем выбранные варианты
+                text = f"✅ {option}" if i in self.user_answers[chat_id][q_idx] else option
+            else:
+                # Для одиночного выбора
+                text = f"🔵 {option}" if (self.user_answers[chat_id][q_idx] == i) else option
+
             callback_data = f"q:{q_idx}:{i}"
             markup.add(types.InlineKeyboardButton(text, callback_data=callback_data))
 
@@ -86,7 +162,7 @@ class ReadingTest:
                                            message_id=self.user_messages[chat_id][q_idx],
                                            reply_markup=markup)
 
-        self.bot.answer_callback_query(call.id, text=f"Вы выбрали: {q['options'][option_idx]}")
+        self.bot.answer_callback_query(call.id)
 
 
     def timer_thread(self, chat_id):
@@ -120,137 +196,31 @@ class ReadingTest:
         seconds = int(seconds) % 60
         return f"{minutes:02d}:{seconds:02d}"
 
-
     def handle_confirm(self, call):
         chat_id = call.message.chat.id
         answers = self.user_answers.get(chat_id, [])
         text = "Ваши ответы:\n"
         for idx, answer in enumerate(answers):
             if answer is not None:
-                text += f"Вопрос {idx+1}: {self.questions[idx]['options'][answer]}\n"
+                if isinstance(answer, list):  # Для множественного выбора
+                    selected = ", ".join([self.questions[idx]['options'][i] for i in answer])
+                    text += f"Вопрос {idx + 1}: {selected}\n"
+                else:  # Для одиночного выбора
+                    text += f"Вопрос {idx + 1}: {self.questions[idx]['options'][answer]}\n"
             else:
-                text += f"Вопрос {idx+1}: нет ответа\n"
-        self.bot.send_message(chat_id, text)
+                text += f"Вопрос {idx + 1}: нет ответа\n"
 
+        self.bot.send_message(chat_id, text)
+        self.show_results(chat_id)
 
     def force_finish(self, chat_id):
-        # Завершаем тест автоматически
         answers = self.user_answers.get(chat_id, [])
         text = "⏰ Время вышло! Ваши ответы:\n"
         for idx, answer in enumerate(answers):
             if answer is not None:
-                text += f"Вопрос {idx+1}: {self.questions[idx]['options'][answer]}\n"
+                text += f"Вопрос {idx + 1}: {self.questions[idx]['options'][answer]}\n"
             else:
-                text += f"Вопрос {idx+1}: нет ответа\n"
+                text += f"Вопрос {idx + 1}: нет ответа\n"
+
         self.bot.send_message(chat_id, text)
-
-
-    # Здесь можно добавить проверку правильности и вывод баллов, если нужно
-
-        # def __init__(self, bot):
-        # self.bot = bot
-        # self.questions = [
-        #     {
-        #         'question': 'Текст вопроса 1...',
-        #         'options': [
-        #             'Вариант ответа 1',
-        #             'Вариант ответа 2',
-        #             'Вариант ответа 3',
-        #             'Вариант ответа 4'
-        #         ],
-        #         'correct_answer': 0  # Индекс правильного ответа
-        #     },
-        #     {
-        #         'question': 'Текст вопроса 2...',
-        #         'options': [
-        #             'Вариант ответа 1',
-        #             'Вариант ответа 2',
-        #             'Вариант ответа 3',
-        #             'Вариант ответа 4'
-        #         ],
-        #         'correct_answer': 1
-        #     },
-        # ]
-        # self.current_question = 0
-        # self.score = 0
-        # self.start_time = time.time()
-        # self.TEST_DURATION = 2100
-
-    # def start_test(self, message):
-    #     self.send_question(message.chat.id)
-
-    # def send_question(self, chat_id):
-    #     question_data = self.questions[self.current_question]
-    #     keyboard = types.InlineKeyboardMarkup()
-
-    #     for i, option in enumerate(question_data['options']):
-    #         keyboard.add(types.InlineKeyboardButton(text=option, callback_data=f'answer_{i}'))
-
-    #     question_text = f"Вопрос {self.current_question + 1}/{len(self.questions)}\n\n{question_data['question']}"
-    #     self.bot.send_message(chat_id, question_text, reply_markup=keyboard)
-
-    # def handle_answer(self, call):
-    #     if self.current_question >= len(self.questions):
-    #         print("No more questions left.")  # Debug
-    #         self.finish_test(call.message.chat.id)
-    #         return
-
-    #     try:
-    #         chat_id = call.message.chat.id
-    #         print(f"Handling answer for chat {chat_id}, current question: {self.current_question}")  # Debug log
-
-    #         # Проверяем, не завершился ли тест по времени
-    #         if time.time() - self.start_time > self.TEST_DURATION:
-    #             print("Test time expired")  # Debug log
-    #             self.finish_test(chat_id)
-    #             return
-
-    #         # Получаем индекс ответа пользователя
-    #         try:
-    #             answer_index = int(call.data.split('_')[1])
-    #             print(f"User selected answer {answer_index}")  # Debug log
-    #         except (IndexError, ValueError) as e:
-    #             print(f"Error parsing answer: {e}")  # Debug log
-    #             self.bot.send_message(chat_id, "Произошла ошибка обработки ответа. Пожалуйста, попробуйте ещё раз.")
-    #             return
-
-    #         # Проверяем правильность ответа
-    #         current_question_data = self.questions[self.current_question]
-    #         if answer_index == current_question_data['correct_answer']:
-    #             self.score += 1
-    #             print("Answer is correct")  # Debug log
-    #         else:
-    #             print("Answer is wrong")  # Debug log
-
-    #         # Удаляем предыдущее сообщение с вопросом (чтобы избежать накопления сообщений)
-    #         try:
-    #             self.bot.delete_message(chat_id, call.message.message_id)
-    #             print("Previous question message deleted")  # Debug log
-    #         except Exception as e:
-    #             print(f"Could not delete message: {e}")  # Debug log
-
-    #         # Переходим к следующему вопросу
-    #         self.current_question += 1
-
-    #         if self.current_question < len(self.questions):
-    #             print(f"Moving to question {self.current_question}")  # Debug log
-    #             self.send_question(chat_id)
-    #         else:
-    #             print("Test completed")  # Debug log
-    #             self.finish_test(chat_id)
-
-    #     except Exception as e:
-    #         print(f"Unexpected error in handle_answer: {e}")  # Debug log
-    #         self.bot.send_message(chat_id, "Произошла непредвиденная ошибка. Тест будет перезапущен.")
-    #         self.finish_test(chat_id)
-
-    # def finish_test(self, chat_id):
-    #     total = len(self.questions)
-    #     percentage = (self.score / total) * 100
-
-    #     result_text = f"Тест завершен!\n\nПравильных ответов: {self.score}/{total}\nРезультат: {percentage:.1f}%\n\n"
-    #     result_text += "Правильные ответы:\n"
-    #     for i, question in enumerate(self.questions):
-    #         result_text += f"{i + 1}. {question['options'][question['correct_answer']]}\n"
-
-    #     self.bot.send_message(chat_id, result_text)
+        self.show_results(chat_id)  # Добавляем показ результатов
