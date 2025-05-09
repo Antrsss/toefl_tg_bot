@@ -1,6 +1,7 @@
 l_questions = [
     {
-        "text": """1. Why is the student talking with the employee?
+        "text": """Listen to a conversation between a university employee and a student. Play Audio 18.01
+        \n1. Why is the student talking with the employee?
           (A) To ask where Woolsey Hall is located
           (B) To get advice on paying for a bill
           (C) To find out how he can get a new student ID
@@ -10,7 +11,7 @@ l_questions = [
         "correct_answer": 2
     },
     {
-        "text": """2. Listen again to part of the conversation. Then answer the question. a Play Audio 18.02
+        "text": """2. Listen again to part of the conversation. Then answer the question. Play Audio 18.02
           (A) She wants to check the student's eyesight.
           (B) She needs the student to help her find information.
           (C) She is showing the student he came to the wrong ofice.
@@ -42,7 +43,9 @@ l_questions = [
 
     #passage 2
     {
-        "text": """5. What is the lecture mainly about?
+        "text": """Listen to part of a lecture in a geology class. Play Audio 18.03 Geology
+        
+        5. What is the lecture mainly about?
           (A) A comparison between animal and plant fossils
           (B) The classification of how fossils form
           (C) The process for creating trace fossils
@@ -62,7 +65,7 @@ l_questions = [
         "correct_answer": 0
     },
     {
-        "text": """7. Listen again to part of the lecture. Then answer the question. ( Play Audio 18.04
+        "text": """7. Listen again to part of the lecture. Then answer the question. Play Audio 18.04
           (A) He is reminding students that they will have a test soon.
           (B) He is checking to see if the students have any questions.
           (C) He is preparing to introduce a new topic.
@@ -107,7 +110,9 @@ l_questions = [
 
     #passage 3
     {
-        "text": """11. What is the talk mainly about?
+        "text": """Listen to part of a lecture in an economic history class. Play Audio 18.05
+        
+        11. What is the talk mainly about?
           (A) What a medieval guild was and how it functioned
           (B) The evolution of guilds into modern trade unions
           (C) The different types of jobs medieval craftsmen had
@@ -127,7 +132,7 @@ l_questions = [
         "correct_answer": 2
     },
     {
-        "text": """13. Listen again to part of the lecture. Then answer the question. ( a Play Audio 18.06
+        "text": """13. Listen again to part of the lecture. Then answer the question. Play Audio 18.06
           (A) He thinks the students misunderstood his joke.
           (B) He wants students to understand the job was considered important.
           (C) He is checking to see his students' sense of humor.
@@ -147,7 +152,7 @@ l_questions = [
         "correct_answer": 2
     },
     {
-        "text": """15. Listen again to part of the lecture. Then answer the question. a 18.07
+        "text": """15. Listen again to part of the lecture. Then answer the question. Play Audio 18.07
           (A) He feels that the students are bored with the lecture.
           (B) He is encouraging the students to ask more questions.
           (C) He feels that his students need him to repeat information he just said.
@@ -169,7 +174,9 @@ l_questions = [
 
     #passage 4
     {
-        "text": """17. What is the class discussion about?
+        "text": """Listen to part of a lecture in a history class. Play Audio 18.08 History
+        
+        17. What is the class discussion about?
           (A) Classification of different agricultural revolutions
           (B) Definition of fallow land and its role in 18th century Britain
           (C) An evaluation of European farming practices
@@ -179,7 +186,7 @@ l_questions = [
         "correct_answer": 3
     },
     {
-        "text": """18. Listen again to part of the lecture. Then answer the question. ( a Play Audio 18.09
+        "text": """18. Listen again to part of the lecture. Then answer the question. Play Audio 18.09
           (A) He wants to know if the students think the lecture is interesting.
           (B) He is trying to find out if the students are paying attention.
           (C) He wants the students to repeat the information he just said.
@@ -189,7 +196,7 @@ l_questions = [
         "correct_answer": 3
     },
     {
-        "text": """19. Listen again to part of the lecture. Then answer the question. o Play Audio 18.10
+        "text": """19. Listen again to part of the lecture. Then answer the question. Play Audio 18.10
           (A) To clarify the student's misperception
           (B) To show the student the correct pronunciation
           (C) To repeat the student's ideas
@@ -232,7 +239,9 @@ l_questions = [
 
     #passage 5
     {
-        "text": """23. Why does the student go to see the professor?
+        "text": """Listen to part of a conversation between a student and a professor. Play Audio 18.11
+        
+        23. Why does the student go to see the professor?
           (A) To find out about a book she needs to read
           (B) To seek clarification about a presentation
           (C) To ask for advice on writing a paper
@@ -242,7 +251,7 @@ l_questions = [
         "correct_answer": 1
     },
     {
-        "text": """24. Listen again to part of the conversation. Then answer the question. 6 a Play Audio 18.12
+        "text": """24. Listen again to part of the conversation. Then answer the question. Play Audio 18.12
           (A) He is not sure if he has met the student before.
           (B) He doesn't want to student coming to his office so early.
           (C) He is explaining why he forgot the student's name.
@@ -262,7 +271,7 @@ l_questions = [
         "correct_answer": 3
     },
     {
-        "text": """26. Listen again to part of the conversation. Then answer the question. ( Play Audio 18.13
+        "text": """26. Listen again to part of the conversation. Then answer the question. Play Audio 18.13
           (A) She feels rather certain about what she needs to do.
           (B) She is very doubtful about what she needs to do.
           (C) She wants the professor to read her draft.
@@ -275,7 +284,7 @@ l_questions = [
     #add answers!!!!
     {
         "text": """27. According to the conversation, which of the features is part of each section of the presentation?
-          (A) Introduction B o d y Conclusion
+          (A) Introduction Body Conclusion
           (B) Briefly introduce supporting points
           (C) State the main idea
           (D) Summarize what was already said
@@ -287,7 +296,9 @@ l_questions = [
 
     #passage 6
     {
-        "text": """28. What does the professor talk about in this lecture?
+        "text": """Listen to part of a geography lecture. 6 d Play Audio 18.14 Geography
+        
+        28. What does the professor talk about in this lecture?
           (A) She explains the features of hyperarid regions around the world
           (B) She discusses how climate change can alter a desert
           (C) She compares two different types of desert climates

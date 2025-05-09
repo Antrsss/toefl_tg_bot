@@ -5,7 +5,6 @@ from listening.listening import ListeningTest
 
 bot = telebot.TeleBot('7507944869:AAFQZKisWbLinpBAB2DDCIFBtwtCdjexPb8')
 
-# Создаем экземпляры тестов для каждого пользователя
 user_tests = {}
 
 
