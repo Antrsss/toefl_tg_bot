@@ -60,6 +60,15 @@ def handle_reading_answer(call):
     chat_id = call.message.chat.id
     if chat_id in user_tests:
         user_tests[chat_id].handle_answer(call)
+
+@bot.message_handler(commands=['start_listening'])
+def start_listening(message):
+    ListeningTest.start_test(message)
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("listen_answer_"))
+def handle_listening_answer(call):
+    ListeningTest.handle_answer(call)
+
     
 
     # Здесь можно добавить проверку правильности и вывод баллов, если нужно

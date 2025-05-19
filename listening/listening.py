@@ -1,92 +1,144 @@
-from telebot import types
 import time
-import os
+from telebot import types
 import listening.listening_questions
-
 
 class ListeningTest:
     def __init__(self, bot):
         self.bot = bot
         self.questions = listening.listening_questions.l_questions
-        self.current_question = 0
-        self.score = 0
-        self.start_time = time.time()
-        self.TEST_DURATION = 1200  # 20 minutes in seconds
-        self.current_audio_file = None
+        self.current_question_index = {}  # chat_id -> current question index
+        self.user_answers = {}            # chat_id -> list of answers
+        self.scores = {}                  # chat_id -> score
+        self.start_times = {}             # chat_id -> start time
+        self.TEST_DURATION = 36 * 60      # 36 minutes
+        self.current_audio_file = {}      # chat_id -> audio file name
 
     def start_test(self, message):
-        instructions = """Listening Section
-        \nListening Section Instructions
-        In this section you will hear six lectures and conversations to test your listening comprehension skills. Each lecture or conversation will only be played once. Following the conversation, you will be asked to answer a series of questions. The questions may ask about the main idea or other details. Other questions may ask about the speaker's stance or purpose.
-        \nListen carefully and answer based on what the speaker says or implies.
-        \nYou may use a sheet of paper to take notes. These notes can be used to help you answer the questions. Notes are not scored.
-        \nYou will have a total of 36 minutes to answer all questions.
-        \nNote: In the actual test, you will not be able to return to a question after answering it."""
+        chat_id = message.chat.id
+        self.current_question_index[chat_id] = 0
+        self.user_answers[chat_id] = [-1] * len(self.questions)
+        self.scores[chat_id] = 0
+        self.start_times[chat_id] = time.time()
+        self.current_audio_file[chat_id] = None
 
-        self.bot.send_message(message.chat.id, instructions)
+        instructions = (
+            "🎧 *Listening Section Instructions*\n\n"
+            "In this section, you will hear several lectures and conversations to test your listening comprehension. "
+            "Each lecture or conversation will be played *only once*.\n\n"
+            "After listening, answer the following questions. "
+            "Questions may ask about the main idea, specific details, or implied meaning.\n\n"
+            "📝 You may take notes on a separate sheet of paper. Notes are not scored.\n\n"
+            "⏳ You have *36 minutes* to complete this section."
+        )
+        self.bot.send_message(chat_id, instructions, parse_mode="Markdown")
         time.sleep(2)
-        self.send_question(message.chat.id)
+        self.send_question(chat_id)
 
     def send_question(self, chat_id):
-        if self.current_question >= len(self.questions):
-            self.finish_test(chat_id)
-            return
+        index = self.current_question_index.get(chat_id, 0)
 
-        question_data = self.questions[self.current_question]
+        # Проверка времени
+        if time.time() - self.start_times[chat_id] > self.TEST_DURATION:
+            return self.finish_test(chat_id)
+
+        if index >= len(self.questions):
+            return self.finish_test(chat_id)
+
+        question = self.questions[index]
         keyboard = types.InlineKeyboardMarkup()
 
-        for i, option in enumerate(question_data['options']):
-            keyboard.add(types.InlineKeyboardButton(text=option, callback_data=f'listen_answer_{i}'))
+        selected = self.user_answers[chat_id][index]
+        for i, option in enumerate(question['options']):
+            text = f"🔵 {option}" if i == selected else option
+            keyboard.add(types.InlineKeyboardButton(text=text, callback_data=f'listen_answer_{i}'))
 
-        if question_data['audio_file'] and question_data['audio_file'] != self.current_audio_file:
+        # Отправка аудио (если ещё не отправлено)
+        audio_file = question.get("audio_file")
+        if audio_file and self.current_audio_file[chat_id] != audio_file:
             try:
-                with open(question_data['audio_file'], 'rb') as audio:
-                    self.bot.send_audio(
-                        chat_id,
-                        audio,
-                        caption=f"Question {self.current_question + 1}/{len(self.questions)}",
-                        timeout=30
-                    )
-                    self.current_audio_file = question_data['audio_file']
+                with open(audio_file, 'rb') as audio:
+                    self.bot.send_audio(chat_id, audio, caption=f"🎧 Audio for Question {index + 1}", timeout=30)
+                    self.current_audio_file[chat_id] = audio_file
             except Exception as e:
-                print(f"Error sending audio: {e}")
-                self.bot.send_message(
-                    chat_id,
-                    f"Audio not available for question {self.current_question + 1}. Continuing with text only."
-                )
+                print(f"Audio error: {e}")
+                self.bot.send_message(chat_id, f"(⚠️ Audio unavailable for question {index + 1})")
 
         self.bot.send_message(
             chat_id,
-            f"Question {self.current_question + 1}/{len(self.questions)}\n\n{question_data['text']}",
-            reply_markup=keyboard
+            f"*Question {index + 1}/{len(self.questions)}*\n\n{question['text']}",
+            reply_markup=keyboard,
+            parse_mode="Markdown"
         )
 
     def handle_answer(self, call):
         chat_id = call.message.chat.id
+        index = self.current_question_index.get(chat_id, 0)
 
-        if time.time() - self.start_time > self.TEST_DURATION:
+        if chat_id not in self.user_answers:
+            return self.bot.send_message(chat_id, "❗️ Please start the test first by sending /start_listening.")
+
+        if index >= len(self.questions):
             return self.finish_test(chat_id)
 
-        answer_index = int(call.data.split('_')[2])
-        question_data = self.questions[self.current_question]
-
-        if answer_index == question_data['correct_answer']:
-            self.score += 1
-
-        self.current_question += 1
-        if self.current_question < len(self.questions):
-            self.send_question(chat_id)
-        else:
+        # Проверка времени
+        if time.time() - self.start_times[chat_id] > self.TEST_DURATION:
             return self.finish_test(chat_id)
+
+        try:
+            answer_index = int(call.data.split('_')[2])
+        except (IndexError, ValueError):
+            return
+
+        question = self.questions[index]
+        self.user_answers[chat_id][index] = answer_index
+
+        # Обновление кнопок
+        keyboard = types.InlineKeyboardMarkup()
+        for i, option in enumerate(question['options']):
+            text = f"🔵 {option}" if i == answer_index else option
+            keyboard.add(types.InlineKeyboardButton(text=text, callback_data=f'listen_answer_{i}'))
+
+        try:
+            self.bot.edit_message_reply_markup(
+                chat_id=chat_id,
+                message_id=call.message.message_id,
+                reply_markup=keyboard
+            )
+        except Exception as e:
+            print(f"Edit message error: {e}")
+
+        # Подсчёт баллов
+        if answer_index == question['correct_answer']:
+            self.scores[chat_id] += 1
+
+        # Следующий вопрос
+        self.current_question_index[chat_id] += 1
+        time.sleep(0.5)
+        self.send_question(chat_id)
 
     def finish_test(self, chat_id):
         total = len(self.questions)
-        percentage = (self.score / total) * 100
+        score = self.scores.get(chat_id, 0)
+        percentage = (score / total) * 100
+        answers = self.user_answers.get(chat_id, [])
 
-        result_text = f"Listening Test Completed!\n\nCorrect answers: {self.score}/{total}\nScore: {percentage:.1f}%\n\n"
-        result_text += "Correct answers:\n"
-        for i, q in enumerate(self.questions):
-            result_text += f"{i + 1}. {q['options'][q['correct_answer']]}\n"
+        result = f"✅ *Listening Test Completed!*\n\nCorrect answers: *{score} / {total}*\nScore: *{percentage:.1f}%*\n\n*Answers Review:*\n"
 
-        self.bot.send_message(chat_id, result_text)
-        return True  # Сигнал о завершении теста
+        for i, question in enumerate(self.questions):
+            user_ans = answers[i]
+            correct_ans = question['correct_answer']
+            if user_ans == correct_ans:
+                result += f"{i + 1}. ✅ {question['options'][correct_ans]}\n"
+            else:
+                your_answer = question['options'][user_ans] if user_ans != -1 else "No answer"
+                result += f"{i + 1}. ❌ Your answer: {your_answer}\n"
+                result += f"    ✅ Correct: {question['options'][correct_ans]}\n"
+
+        self.bot.send_message(chat_id, result, parse_mode="Markdown")
+
+        # Очистка данных
+        self.current_question_index.pop(chat_id, None)
+        self.user_answers.pop(chat_id, None)
+        self.scores.pop(chat_id, None)
+        self.start_times.pop(chat_id, None)
+        self.current_audio_file.pop(chat_id, None)
