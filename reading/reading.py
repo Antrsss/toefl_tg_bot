@@ -10,7 +10,7 @@ class ReadingTest:
         self.user_answers = {}
         self.user_messages = {}
         self.timer_threads = {}
-        self.test_duration = 2 * 60
+        self.test_duration = 35 * 60
         self.stop_timer_flags = {}
         self.test_start_time = {}
         self.timer_message_id = {}
