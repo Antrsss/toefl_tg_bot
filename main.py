@@ -2,11 +2,17 @@ import telebot
 from telebot import types
 from reading.reading import ReadingTest
 from listening.listening import ListeningTest
+from speaking.speaking import SpeakingTest
 
 bot = telebot.TeleBot('7507944869:AAFQZKisWbLinpBAB2DDCIFBtwtCdjexPb8')
 
 user_tests = {}
 
+@bot.message_handler(content_types=['voice'])
+def handle_voice_message(message):
+    chat_id = message.chat.id
+    if chat_id in user_tests and isinstance(user_tests[chat_id], SpeakingTest):
+        user_tests[chat_id].handle_voice(message)
 
 @bot.message_handler(content_types=['text'])
 def start(message):
@@ -34,7 +40,8 @@ def callback_worker(call):
         user_tests[chat_id] = ListeningTest(bot)
         user_tests[chat_id].start_test(call.message)
     elif call.data == "speaking":
-        bot.send_message(chat_id, "Speaking пока не реализован.")
+        user_tests[chat_id] = SpeakingTest(bot)
+        user_tests[chat_id].start_test(call.message)
     elif call.data == "writing":
         bot.send_message(chat_id, "Writing пока не реализован.")
 
