@@ -75,8 +75,8 @@ class SpeakingTest:
                     "🎧 *Speaking Task 4 - Listening*\n"
                     "Listen to part of the lecture from a business administration class."
                 ),
-                "audio_path": "speaking/business_lecture.ogg",  # Path to your audio file
-                "audio_duration": 117,  # 1 minute 57 seconds
+                "audio_path": "speaking/business_lecture.ogg",
+                "audio_duration": 117,  # 1 minute 57 seconds (like audiofile)
                 "follow_up": (
                     "🎤 *Task:* Using points and examples from the lecture, "
                     "summarize the main features of agile project management.\n\n"
@@ -87,7 +87,7 @@ class SpeakingTest:
                 "response_time": 60
             }
         ]
-        self.active_users = {}  # chat_id -> {"can_answer": False, "stop_event": Event()}
+        self.active_users = {}
 
     async def send_timer(self, chat_id, seconds, label, stop_event=None):
         msg = self.bot.send_message(chat_id, f"⏳ {label}: {seconds} сек...")
@@ -138,23 +138,18 @@ class SpeakingTest:
                 self.active_users[chat_id]["can_answer"] = False
 
             elif task["type"] == "listening":
-                # Send intro message
                 self.bot.send_message(chat_id, task["intro_text"], parse_mode="Markdown")
                 
-                # Send audio file
                 with open(task["audio_path"], 'rb') as audio:
                     audio_msg = self.bot.send_audio(chat_id, audio)
                 
-                # Wait for audio duration
                 await self.send_timer(chat_id, task["audio_duration"], "Время прослушивания")
                 
-                # Delete audio message after listening time is over
                 try:
                     self.bot.delete_message(chat_id, audio_msg.message_id)
                 except:
                     pass
                 
-                # Send follow-up task
                 self.bot.send_message(chat_id, task["follow_up"], parse_mode="Markdown")
                 await self.send_timer(chat_id, task["prep_time"], "Время подготовки")
                 self.bot.send_message(chat_id, "🎤 Можешь говорить. Жду голосовое сообщение!")
@@ -177,9 +172,7 @@ class SpeakingTest:
             self.bot.send_message(chat_id, "⛔️ Голосовое не принимается.")
             return
 
-        # Остановим таймер
         user_state["stop_event"].set()
         user_state["can_answer"] = False
 
-        # Сохраняем голосовое (если нужно)
         self.bot.send_message(chat_id, "🎧 Ответ получен. Спасибо!")
