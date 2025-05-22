@@ -178,7 +178,7 @@ class ReadingTest:
 
     def handle_confirm(self, call):
         chat_id = call.message.chat.id
-        self.stop_timer_flags[chat_id] = True  # Останавливаем таймер
+        self.stop_timer_flags[chat_id] = True
 
         answers = self.user_answers.get(chat_id, [])
         text = "Ваши ответы:\n"
@@ -196,7 +196,7 @@ class ReadingTest:
         self.show_results(chat_id)
 
     def force_finish(self, chat_id):
-        self.stop_timer_flags[chat_id] = True  # На случай, если время вышло
+        self.stop_timer_flags[chat_id] = True
         answers = self.user_answers.get(chat_id, [])
         text = "⏰ Время вышло! Ваши ответы:\n"
         for idx, answer in enumerate(answers):
