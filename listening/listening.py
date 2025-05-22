@@ -10,7 +10,7 @@ class ListeningTest:
         self.user_answers = {}            # chat_id -> list of answers
         self.scores = {}                  # chat_id -> score
         self.start_times = {}             # chat_id -> start time
-        self.TEST_DURATION = 36 * 60      # 36 minutes
+        self.TEST_DURATION = 36 * 60
         self.current_audio_file = {}      # chat_id -> audio file name
 
     def start_test(self, message):
@@ -37,7 +37,6 @@ class ListeningTest:
     def send_question(self, chat_id):
         index = self.current_question_index.get(chat_id, 0)
 
-        # Проверка времени
         if time.time() - self.start_times[chat_id] > self.TEST_DURATION:
             return self.finish_test(chat_id)
 
@@ -52,7 +51,6 @@ class ListeningTest:
             text = f"🔵 {option}" if i == selected else option
             keyboard.add(types.InlineKeyboardButton(text=text, callback_data=f'listen_answer_{i}'))
 
-        # Отправка аудио (если ещё не отправлено)
         audio_file = question.get("audio_file")
         if audio_file and self.current_audio_file[chat_id] != audio_file:
             try:
@@ -80,7 +78,6 @@ class ListeningTest:
         if index >= len(self.questions):
             return self.finish_test(chat_id)
 
-        # Проверка времени
         if time.time() - self.start_times[chat_id] > self.TEST_DURATION:
             return self.finish_test(chat_id)
 
@@ -92,7 +89,6 @@ class ListeningTest:
         question = self.questions[index]
         self.user_answers[chat_id][index] = answer_index
 
-        # Обновление кнопок
         keyboard = types.InlineKeyboardMarkup()
         for i, option in enumerate(question['options']):
             text = f"🔵 {option}" if i == answer_index else option
@@ -107,11 +103,9 @@ class ListeningTest:
         except Exception as e:
             print(f"Edit message error: {e}")
 
-        # Подсчёт баллов
         if answer_index == question['correct_answer']:
             self.scores[chat_id] += 1
 
-        # Следующий вопрос
         self.current_question_index[chat_id] += 1
         time.sleep(0.5)
         self.send_question(chat_id)
@@ -136,7 +130,6 @@ class ListeningTest:
 
         self.bot.send_message(chat_id, result, parse_mode="Markdown")
 
-        # Очистка данных
         self.current_question_index.pop(chat_id, None)
         self.user_answers.pop(chat_id, None)
         self.scores.pop(chat_id, None)
