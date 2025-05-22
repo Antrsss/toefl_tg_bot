@@ -3,6 +3,7 @@ from telebot import types
 from reading.reading import ReadingTest
 from listening.listening import ListeningTest
 from speaking.speaking import SpeakingTest
+from writing.writing import WritingTest
 
 bot = telebot.TeleBot('7507944869:AAFQZKisWbLinpBAB2DDCIFBtwtCdjexPb8')
 
@@ -43,14 +44,21 @@ def callback_worker(call):
         user_tests[chat_id] = SpeakingTest(bot)
         user_tests[chat_id].start_test(call.message)
     elif call.data == "writing":
-        bot.send_message(chat_id, "Writing пока не реализован.")
-
+        user_tests[chat_id] = WritingTest(bot)
+        user_tests[chat_id].start_test(call.message)
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('answer_') or call.data.startswith('listen_answer_'))
 def handle_all_answers(call):
     chat_id = call.message.chat.id
     if chat_id in user_tests:
         user_tests[chat_id].handle_answer(call)
+        
+@bot.callback_query_handler(func=lambda call: call.data.startswith('finish_writing_'))
+def handle_finish_writing(call):
+    chat_id = int(call.data.split('_')[2])
+    if chat_id in user_tests and isinstance(user_tests[chat_id], WritingTest):
+        user_tests[chat_id].finish_early(chat_id)
+    bot.answer_callback_query(call.id)
 
 
 ########################################## VLAD INSERT FOR READING ########################################## START
@@ -60,7 +68,6 @@ def handle_confirm(call):
     chat_id = call.message.chat.id
     if chat_id in user_tests:
         user_tests[chat_id].handle_confirm(call)
-
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("q:"))
 def handle_reading_answer(call):
@@ -75,12 +82,14 @@ def start_listening(message):
 @bot.callback_query_handler(func=lambda call: call.data.startswith("listen_answer_"))
 def handle_listening_answer(call):
     ListeningTest.handle_answer(call)
-
     
-
-    # Здесь можно добавить проверку правильности и вывод баллов, если нужно
-
-########################################## VLAD INSERT FOR READING ########################################## END
+@bot.message_handler(content_types=['text'])
+def handle_text(message):
+    chat_id = message.chat.id
+    if chat_id in user_tests and isinstance(user_tests[chat_id], WritingTest):
+        user_tests[chat_id].handle_text(message)
+    else:
+        start(message)  # Fallback to normal start if not in writing test
 
 
 if __name__ == '__main__':
