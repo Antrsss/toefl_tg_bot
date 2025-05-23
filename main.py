@@ -15,7 +15,7 @@ def handle_voice_message(message):
     if chat_id in user_tests and isinstance(user_tests[chat_id], SpeakingTest):
         user_tests[chat_id].handle_voice(message)
 
-@bot.message_handler(content_types=['text'])
+@bot.message_handler(content_types=['text']) # handle any text message
 def start(message):
     bot.send_message(message.from_user.id, 'Привет! Я бот для прохождения экзамена TOEFL.')
     send_test_type(message)
