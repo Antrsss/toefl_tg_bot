@@ -3,14 +3,17 @@ import reading.reading_questions
 import threading
 import time
 
+duration_for_this_test = 35 * 60 + 1
+
 class ReadingTest:
-    def __init__(self, bot):
+    def __init__(self, bot, user_tests_dict):
         self.bot = bot
+        self.user_tests = user_tests_dict
         self.questions = reading.reading_questions.questions
         self.user_answers = {}
         self.user_messages = {}
         self.timer_threads = {}
-        self.test_duration = 35 * 60
+        self.test_duration = duration_for_this_test
         self.stop_timer_flags = {}
         self.test_start_time = {}
         self.timer_message_id = {}
@@ -45,10 +48,10 @@ class ReadingTest:
     def show_results(self, chat_id):
         results, score, correct_count, total_questions = self.calculate_results(chat_id)
 
-        result_text = f"📊 Результаты теста:\n\n"
-        result_text += f"✅ Правильных ответов: {correct_count}/{total_questions}\n"
-        result_text += f"🔢 Процент правильных: {score:.1f}%\n\n"
-        result_text += "Подробные результаты:\n"
+        result_text = f"📊 Test results:\n\n"
+        result_text += f"✅ Correct answers: {correct_count}/{total_questions}\n"
+        result_text += f"🔢 Persent: {score:.1f}%\n\n"
+        result_text += "Detailed results:\n"
 
         for result in results:
             question = self.questions[result["question"] - 1]
@@ -56,19 +59,19 @@ class ReadingTest:
             correct_ans = result["correct_answer"]
 
             if isinstance(user_ans, list):
-                user_selected = ", ".join([question["options"][i] for i in user_ans]) if user_ans else "Нет ответа"
+                user_selected = ", ".join([question["options"][i] for i in user_ans]) if user_ans else "No answer"
             else:
-                user_selected = question["options"][user_ans] if user_ans is not None else "Нет ответа"
+                user_selected = question["options"][user_ans] if user_ans is not None else "No answer"
 
             if isinstance(correct_ans, list):
                 correct_selected = ", ".join([question["options"][i] for i in correct_ans])
             else:
                 correct_selected = question["options"][correct_ans]
 
-            result_text += f"\n❓ Вопрос {result['question']}:\n"
-            result_text += f"   Ваш ответ: {'✅' if result['is_correct'] else '❌'} {user_selected}\n"
+            result_text += f"\n❓ Question {result['question']}:\n"
+            result_text += f"   Your answer: {'✅' if result['is_correct'] else '❌'} {user_selected}\n"
             if not result['is_correct']:
-                result_text += f"   Правильный ответ: {correct_selected}\n"
+                result_text += f"   Correct answer: {correct_selected}\n"
 
         self.bot.send_message(chat_id, result_text)
 
@@ -91,11 +94,11 @@ class ReadingTest:
             self.user_messages[chat_id].append(sent_msg.message_id)
 
         confirm_markup = types.InlineKeyboardMarkup()
-        confirm_markup.add(types.InlineKeyboardButton("✅ Подтвердить ответы", callback_data="confirm"))
-        self.bot.send_message(chat_id, "Когда закончите, нажмите подтвердить.", reply_markup=confirm_markup)
+        confirm_markup.add(types.InlineKeyboardButton("✅ CONFIRM ANSWERS", callback_data="confirm"))
+        self.bot.send_message(chat_id, "When you're done, click 'CONFIRM ANSWERS'.", reply_markup=confirm_markup)
 
         self.test_start_time[chat_id] = time.time()
-        timer_message = self.bot.send_message(chat_id, f"⏳ Время осталось: {self.format_time(self.test_duration)}")
+        timer_message = self.bot.send_message(chat_id, f"⏳ Time: {self.format_time(self.test_duration)}")
         self.timer_message_id[chat_id] = timer_message.message_id
 
         timer_thread = threading.Thread(target=self.timer_thread, args=(chat_id,))
@@ -113,7 +116,7 @@ class ReadingTest:
                 try:
                     self.bot.edit_message_text(chat_id=chat_id,
                                                message_id=self.timer_message_id[chat_id],
-                                               text="⏳ Время вышло!")
+                                               text="⏳ Time's up!")
                     self.force_finish(chat_id)
                 except Exception as e:
                     print(e)
@@ -122,7 +125,7 @@ class ReadingTest:
             try:
                 self.bot.edit_message_text(chat_id=chat_id,
                                            message_id=self.timer_message_id[chat_id],
-                                           text=f"⏳ Время осталось: {self.format_time(remaining)}")
+                                           text=f"⏳ Time: {self.format_time(remaining)}")
             except Exception as e:
                 print(e)
 
@@ -136,7 +139,7 @@ class ReadingTest:
     def handle_answer(self, call):
         chat_id = call.message.chat.id
         if chat_id not in self.user_answers or chat_id not in self.user_messages:
-            self.bot.answer_callback_query(call.id, text="Пожалуйста, начните тест сначала /start")
+            self.bot.answer_callback_query(call.id, text="Please start the test again /start")
             return
 
         _, q_idx, option_idx = call.data.split(":")
@@ -156,7 +159,7 @@ class ReadingTest:
                 current_answers.append(option_idx)
         else:
             if self.user_answers[chat_id][q_idx] == option_idx:
-                self.bot.answer_callback_query(call.id, text="Этот вариант уже выбран ✅")
+                self.bot.answer_callback_query(call.id, text="This option has already been selected ✅")
                 return
             self.user_answers[chat_id][q_idx] = option_idx
 
@@ -181,33 +184,39 @@ class ReadingTest:
         self.stop_timer_flags[chat_id] = True
 
         answers = self.user_answers.get(chat_id, [])
-        text = "Ваши ответы:\n"
+        text = "Your answers:\n"
         for idx, answer in enumerate(answers):
             if answer is not None:
                 if isinstance(answer, list):
                     selected = ", ".join([self.questions[idx]['options'][i] for i in answer])
-                    text += f"Вопрос {idx + 1}: {selected}\n"
+                    text += f"Question {idx + 1}: {selected}\n"
                 else:
-                    text += f"Вопрос {idx + 1}: {self.questions[idx]['options'][answer]}\n"
+                    text += f"Question {idx + 1}: {self.questions[idx]['options'][answer]}\n"
             else:
-                text += f"Вопрос {idx + 1}: нет ответа\n"
+                text += f"Question {idx + 1}: no answer\n"
 
         self.bot.send_message(chat_id, text)
         self.show_results(chat_id)
+
+        if chat_id in self.user_tests:
+            del self.user_tests[chat_id]
 
     def force_finish(self, chat_id):
         self.stop_timer_flags[chat_id] = True
         answers = self.user_answers.get(chat_id, [])
-        text = "⏰ Время вышло! Ваши ответы:\n"
+        text = "⏰ Time's up! Your answers:\n"
         for idx, answer in enumerate(answers):
             if answer is not None:
                 if isinstance(answer, list):
                     selected = ", ".join([self.questions[idx]['options'][i] for i in answer])
-                    text += f"Вопрос {idx + 1}: {selected}\n"
+                    text += f"Question {idx + 1}: {selected}\n"
                 else:
-                    text += f"Вопрос {idx + 1}: {self.questions[idx]['options'][answer]}\n"
+                    text += f"Question {idx + 1}: {self.questions[idx]['options'][answer]}\n"
             else:
-                text += f"Вопрос {idx + 1}: нет ответа\n"
+                text += f"Question {idx + 1}: no answer\n"
 
         self.bot.send_message(chat_id, text)
         self.show_results(chat_id)
+
+        if chat_id in self.user_tests:
+            del self.user_tests[chat_id]

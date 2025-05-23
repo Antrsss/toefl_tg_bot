@@ -26,15 +26,15 @@ texts = [
                     "to verify that the runic alphabet is a variant of an earlier alphabet."
                 ),
                 "audio_path": "writing/writing_task_1.ogg",
-                "audio_duration": 10,
+                "audio_duration": 4 * 60 + 1,
                 "question": (
                     "✍️ *Task:* Summarize the points made in the lecture, being sure to explain how they "
                     "cast doubt on specific points made in the reading passage.\n\n"
                     "⏳ *Time Limit:* 20 minutes\n"
                     "📝 *Word Count:* 150-225 words"
                 ),
-                "reading_time": 10,
-                "writing_time": 10
+                "reading_time": 3 * 60 + 1,
+                "writing_time": 20 * 60 + 1
             },
             {
                 "type": "discussion",
@@ -60,6 +60,6 @@ texts = [
                     "⏳ *Time Limit:* 10 minutes\n"
                     "📝 *Word Count:* ~120 words"
                 ),
-                "writing_time": 10
+                "writing_time": 10 * 60 + 1
             }
         ]

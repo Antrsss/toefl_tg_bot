@@ -4,8 +4,9 @@ from telebot import types
 from .writing_texts import texts
 
 class WritingTest:
-    def __init__(self, bot):
+    def __init__(self, bot, user_tests_dict):
         self.bot = bot
+        self.user_tests = user_tests_dict
         self.tasks = texts
         self.active_users = {}
         self.current_task_index = {}
@@ -13,7 +14,7 @@ class WritingTest:
     async def send_timer(self, chat_id, seconds, label, stop_event=None, allow_early_finish=False):
         markup = types.InlineKeyboardMarkup()
         if allow_early_finish:
-            finish_button = types.InlineKeyboardButton(text="⏹ Завершить досрочно", callback_data=f"finish_writing_{chat_id}")
+            finish_button = types.InlineKeyboardButton(text="⏹ Finish now", callback_data=f"finish_writing_{chat_id}")
             markup.add(finish_button)
         
         msg = self.bot.send_message(chat_id, f"⏳ {label}: {seconds // 60}:{seconds % 60:02d}", reply_markup=markup)
@@ -33,11 +34,11 @@ class WritingTest:
         
         if stop_event and stop_event.is_set():
             try:
-                self.bot.edit_message_text(f"⏹ {label} остановлено.", chat_id, msg.message_id)
+                self.bot.edit_message_text(f"⏹ {label} stopped.", chat_id, msg.message_id)
             except:
                 pass
         else:
-            self.bot.send_message(chat_id, f"⏱ {label} завершено!")
+            self.bot.send_message(chat_id, f"⏱ {label} completed!")
         return msg
 
     def start_test(self, message):
@@ -86,14 +87,14 @@ class WritingTest:
                 
                 # Listening phase (НЕЛЬЗЯ завершить досрочно)
                 self.active_users[chat_id]["current_phase"] = "listening"
-                self.bot.send_message(chat_id, "🎧 Сейчас будет аудиозапись лекции:", parse_mode="Markdown")
+                self.bot.send_message(chat_id, "🎧 There will be an audio recording of the lecture now:", parse_mode="Markdown")
                 with open(task["audio_path"], 'rb') as audio:
                     audio_msg = self.bot.send_audio(chat_id, audio)
                 
                 await self.send_timer(
                     chat_id, 
                     task["audio_duration"], 
-                    "Время прослушивания",
+                    "Time to listen",
                     allow_early_finish=False
                 )
                 
@@ -103,7 +104,7 @@ class WritingTest:
                     pass
                 
                 # Show reading text again
-                self.bot.send_message(chat_id, "📖 Текст для справки:", parse_mode="Markdown")
+                self.bot.send_message(chat_id, "📖 Text for reference:", parse_mode="Markdown")
                 self.bot.send_message(chat_id, task["reading_text"], parse_mode="Markdown")
                 
                 # Writing phase (можно завершить досрочно)
@@ -113,7 +114,7 @@ class WritingTest:
                 await self.send_timer(
                     chat_id, 
                     task["writing_time"], 
-                    "Время на написание", 
+                    "Time to write", 
                     self.active_users[chat_id]["stop_event"],
                     allow_early_finish=True
                 )
@@ -121,9 +122,9 @@ class WritingTest:
                 
                 # Word count check
                 if self.active_users[chat_id]["word_count"] < 150:
-                    self.bot.send_message(chat_id, "⚠️ Вы написали менее 150 слов. Рекомендуется писать 150-225 слов.")
+                    self.bot.send_message(chat_id, "⚠️ You have written less than 150 words. It is recommended to write 150-225 words.")
                 elif self.active_users[chat_id]["word_count"] > 225:
-                    self.bot.send_message(chat_id, "⚠️ Вы написали более 225 слов. Рекомендуется писать 150-225 слов.")
+                    self.bot.send_message(chat_id, "⚠️ You have written more than 225 words. It is recommended to write 150-225 words.")
 
             elif task["type"] == "discussion":
                 # Discussion task (можно завершить досрочно)
@@ -141,9 +142,9 @@ class WritingTest:
                 
                 # Word count check
                 if self.active_users[chat_id]["word_count"] < 100:
-                    self.bot.send_message(chat_id, "⚠️ Вы написали менее 100 слов. Рекомендуется писать около 120 слов.")
+                    self.bot.send_message(chat_id, "⚠️ You have written less than 100 words. It is recommended to write about 120 words.")
                 elif self.active_users[chat_id]["word_count"] > 150:
-                    self.bot.send_message(chat_id, "⚠️ Вы написали более 150 слов. Рекомендуется писать около 120 слов.")
+                    self.bot.send_message(chat_id, "⚠️ You have written more than 150 words. It is recommended to write about 120 words.")
 
             # Переходим к следующему заданию
             self.current_task_index[chat_id] += 1
@@ -152,21 +153,25 @@ class WritingTest:
         self.active_users.pop(chat_id, None)
         self.current_task_index.pop(chat_id, None)
 
+        if chat_id in self.user_tests:
+            del self.user_tests[chat_id]
+
+
     def handle_text(self, message):
         chat_id = message.chat.id
         user_state = self.active_users.get(chat_id)
 
         if not user_state:
-            self.bot.send_message(chat_id, "Сейчас не проводится задание Writing.")
+            self.bot.send_message(chat_id, "The Writing task is not currently underway.")
             return
 
         if not user_state["writing"]:
-            self.bot.send_message(chat_id, "⛔️ Текст не принимается.")
+            self.bot.send_message(chat_id, "⛔️ You can't send you text now. The text is not accepted.")
             return
 
         word_count = len(message.text.split())
         user_state["word_count"] = word_count
-        self.bot.send_message(chat_id, f"📝 Слов: {word_count}", reply_to_message_id=message.message_id)
+        self.bot.send_message(chat_id, f"📝 Words: {word_count}", reply_to_message_id=message.message_id)
 
     def finish_early(self, chat_id):
         if chat_id in self.active_users:
@@ -182,15 +187,15 @@ class WritingTest:
                 if current_phase == "writing":
                     if self.active_users[chat_id]["current_task"] == "integrated":
                         if self.active_users[chat_id]["word_count"] < 150:
-                            self.bot.send_message(chat_id, "⚠️ Вы написали менее 150 слов. Рекомендуется писать 150-225 слов.")
+                            self.bot.send_message(chat_id, "⚠️ You have written less than 150 words. It is recommended to write 150-225 words.")
                         elif self.active_users[chat_id]["word_count"] > 225:
-                            self.bot.send_message(chat_id, "⚠️ Вы написали более 225 слов. Рекомендуется писать 150-225 слов.")
+                            self.bot.send_message(chat_id, "⚠️ You have written more than 225 words. It is recommended to write 150-225 words.")
                     else:
                         if self.active_users[chat_id]["word_count"] < 100:
-                            self.bot.send_message(chat_id, "⚠️ Вы написали менее 100 слов. Рекомендуется писать около 120 слов.")
+                            self.bot.send_message(chat_id, "⚠️ You have written less than 100 words. It is recommended to write about 120 words.")
                         elif self.active_users[chat_id]["word_count"] > 150:
-                            self.bot.send_message(chat_id, "⚠️ Вы написали более 150 слов. Рекомендуется писать около 120 слов.")
+                            self.bot.send_message(chat_id, "⚠️ You have written more than 150 words. It is recommended to write about 120 words.")
                 
-                self.bot.send_message(chat_id, "✅ Фаза завершена досрочно! Переходим к следующему этапу...")
+                self.bot.send_message(chat_id, "✅ The phase is completed ahead of schedule! Moving on to the next stage...")
             else:
-                self.bot.send_message(chat_id, "⛔️ Эта фаза не может быть завершена досрочно.")
+                self.bot.send_message(chat_id, "⛔️ This phase cannot be completed ahead of schedule.")

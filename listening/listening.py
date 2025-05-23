@@ -2,15 +2,18 @@ import time
 from telebot import types
 import listening.listening_questions
 
+duration_for_this_test = 36 * 60 + 1
+
 class ListeningTest:
-    def __init__(self, bot):
+    def __init__(self, bot, user_tests_dict):
         self.bot = bot
+        self.user_tests = user_tests_dict
         self.questions = listening.listening_questions.l_questions
         self.current_question_index = {}  # chat_id -> current question index
         self.user_answers = {}            # chat_id -> list of answers
         self.scores = {}                  # chat_id -> score
         self.start_times = {}             # chat_id -> start time
-        self.TEST_DURATION = 36 * 60
+        self.TEST_DURATION = duration_for_this_test
         self.current_audio_file = {}      # chat_id -> audio file name
 
     def start_test(self, message):
@@ -135,3 +138,6 @@ class ListeningTest:
         self.scores.pop(chat_id, None)
         self.start_times.pop(chat_id, None)
         self.current_audio_file.pop(chat_id, None)
+
+        if chat_id in self.user_tests:
+            del self.user_tests[chat_id]
