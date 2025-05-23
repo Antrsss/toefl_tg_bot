@@ -40,9 +40,23 @@ texts = [
                 "type": "discussion",
                 "prompt": (
                     "💬 *Writing Task 2 - Discussion*\n"
-                    "Some people believe that university students should be required to attend classes. "
-                    "Others believe that going to classes should be optional for students.\n\n"
-                    "Which point of view do you agree with? Use specific reasons and examples to support your answer.\n\n"
+                    "Your professor is teaching a class on business management. "
+                    "Write a post responding to the professor's question. In your response, you should:"
+                    "   - express and support your opinion."
+                    "   - make a contribution to the discussion in your own words."
+                    "An effective response will contain at least 100 words.\n"
+                    "These days it's become common for many companies in large cities to "
+                    "allow their staff to work from home, connecting to their office and "
+                    "coworkers by using their phone, email, and conferencing software. Some "
+                    "people think this makes workers happier, but others feel it damages overall "
+                    "productivity. Which view do you agree with, and why?\n" 
+                    "It's hard enough to work for eight hours a day. If you also have to " 
+                    "spend two hours commuting to work on the train or by bus, you have "
+                    "almost no time for yourself after work! Telecommuting improves workers' lives.\n"
+                    "Work is more than just sitting at a computer. When too many people work from home, "
+                    "they only communicate during scheduled meetings. If they all worked in the same office, "
+                    "they would also chat casually. They'd have better relationships, and would enjoy their jobs more.\n\n"
+
                     "⏳ *Time Limit:* 10 minutes\n"
                     "📝 *Word Count:* ~120 words"
                 ),
