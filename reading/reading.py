@@ -77,7 +77,11 @@ class ReadingTest:
 
     def start_test(self, message):
         chat_id = message.chat.id
-        self.user_answers[chat_id] = []
+        # Инициализируем user_answers правильными типами данных
+        self.user_answers[chat_id] = [
+            [] if q.get("multiple_answers", False) else None 
+            for q in self.questions
+        ]
         self.user_messages[chat_id] = []
         self.stop_timer_flags[chat_id] = False
 
@@ -105,37 +109,6 @@ class ReadingTest:
         timer_thread.start()
         self.timer_threads[chat_id] = timer_thread
 
-    def timer_thread(self, chat_id):
-        while True:
-            if self.stop_timer_flags.get(chat_id):
-                break
-
-            elapsed = time.time() - self.test_start_time[chat_id]
-            remaining = self.test_duration - elapsed
-            if remaining <= 0:
-                try:
-                    self.bot.edit_message_text(chat_id=chat_id,
-                                               message_id=self.timer_message_id[chat_id],
-                                               text="⏳ Time's up!")
-                    self.force_finish(chat_id)
-                except Exception as e:
-                    print(e)
-                break
-
-            try:
-                self.bot.edit_message_text(chat_id=chat_id,
-                                           message_id=self.timer_message_id[chat_id],
-                                           text=f"⏳ Time: {self.format_time(remaining)}")
-            except Exception as e:
-                print(e)
-
-            time.sleep(1)
-
-    def format_time(self, seconds):
-        minutes = int(seconds) // 60
-        seconds = int(seconds) % 60
-        return f"{minutes:02d}:{seconds:02d}"
-
     def handle_answer(self, call):
         chat_id = call.message.chat.id
         if chat_id not in self.user_answers or chat_id not in self.user_messages:
@@ -146,9 +119,7 @@ class ReadingTest:
         q_idx = int(q_idx)
         option_idx = int(option_idx)
 
-        while len(self.user_answers[chat_id]) <= q_idx:
-            self.user_answers[chat_id].append([] if self.questions[q_idx].get("multiple_answers", False) else None)
-
+        # Удаляем проверку len(self.user_answers[chat_id]) <= q_idx, так как теперь инициализируем все ответы заранее
         is_multiple = self.questions[q_idx].get("multiple_answers", False)
 
         if is_multiple:
@@ -174,10 +145,53 @@ class ReadingTest:
             markup.add(types.InlineKeyboardButton(text, callback_data=callback_data))
 
         self.bot.edit_message_reply_markup(chat_id=chat_id,
-                                           message_id=self.user_messages[chat_id][q_idx],
-                                           reply_markup=markup)
+                                        message_id=self.user_messages[chat_id][q_idx],
+                                        reply_markup=markup)
 
         self.bot.answer_callback_query(call.id)
+
+    def timer_thread(self, chat_id):
+        next_update_time = time.time()  # Время следующего обновления
+        while True:
+            if self.stop_timer_flags.get(chat_id):
+                break
+
+            current_time = time.time()
+            elapsed = current_time - self.test_start_time[chat_id]
+            remaining = self.test_duration - elapsed
+            
+            if remaining <= 0:
+                try:
+                    self.bot.edit_message_text(
+                        chat_id=chat_id,
+                        message_id=self.timer_message_id[chat_id],
+                        text="⏳ Time's up!"
+                    )
+                    self.force_finish(chat_id)
+                except Exception as e:
+                    print(f"Timer error: {e}")
+                break
+
+            try:
+                # Обновляем таймер только если прошла целая секунда
+                if current_time >= next_update_time:
+                    self.bot.edit_message_text(
+                        chat_id=chat_id,
+                        message_id=self.timer_message_id[chat_id],
+                        text=f"⏳ Time: {self.format_time(remaining)}"
+                    )
+                    next_update_time = current_time + 1  # Устанавливаем время следующего обновления
+            except Exception as e:
+                print(f"Timer update error: {e}")
+
+            # Спим оставшееся время до следующего обновления
+            sleep_time = max(0, next_update_time - time.time())
+            time.sleep(sleep_time)
+
+    def format_time(self, seconds):
+        minutes = int(seconds) // 60
+        seconds = int(seconds) % 60
+        return f"{minutes:02d}:{seconds:02d}"
 
     def handle_confirm(self, call):
         chat_id = call.message.chat.id

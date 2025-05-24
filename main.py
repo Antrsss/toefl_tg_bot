@@ -105,9 +105,19 @@ def handle_reading_answer(call):
 def start_listening(message):
     ListeningTest.start_test(message)
 
-@bot.callback_query_handler(func=lambda call: call.data.startswith("listen_answer_"))
-def handle_listening_answer(call):
-    ListeningTest.handle_answer(call)
+@bot.callback_query_handler(func=lambda call: call.data.startswith('listen_'))
+def handle_listening_callbacks(call):
+    chat_id = call.message.chat.id
+    if chat_id in user_tests and isinstance(user_tests[chat_id], ListeningTest):
+        if call.data.startswith('listen_answer_'):
+            user_tests[chat_id].handle_answer(call)
+        elif call.data.startswith('listen_finish_'):
+            # Получаем chat_id из callback_data
+            try:
+                finish_chat_id = int(call.data.split('_')[2])
+                user_tests[finish_chat_id].finish_test(finish_chat_id)
+            except (IndexError, ValueError):
+                user_tests[chat_id].finish_test(chat_id)
     
 
 
