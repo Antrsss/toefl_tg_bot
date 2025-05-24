@@ -4,8 +4,9 @@ from telebot import types
 import os
 
 class SpeakingTest:
-    def __init__(self, bot):
+    def __init__(self, bot, user_tests_dict):
         self.bot = bot
+        self.user_tests = user_tests_dict
         self.questions = [
             {
                 "type": "open",
@@ -90,21 +91,21 @@ class SpeakingTest:
         self.active_users = {}
 
     async def send_timer(self, chat_id, seconds, label, stop_event=None):
-        msg = self.bot.send_message(chat_id, f"⏳ {label}: {seconds} сек...")
+        msg = self.bot.send_message(chat_id, f"⏳ {label}: {seconds} sec...")
         while seconds > 0:
             if stop_event and stop_event.is_set():
                 try:
-                    self.bot.edit_message_text(f"⏹ {label} остановлено пользователем.", chat_id, msg.message_id)
+                    self.bot.edit_message_text(f"⏹ {label} stopped by user.", chat_id, msg.message_id)
                 except:
                     pass
                 return
             await asyncio.sleep(1)
             seconds -= 1
             try:
-                self.bot.edit_message_text(f"⏳ {label}: {seconds} сек...", chat_id, msg.message_id)
+                self.bot.edit_message_text(f"⏳ {label}: {seconds} sec...", chat_id, msg.message_id)
             except:
                 pass
-        self.bot.send_message(chat_id, f"⏱ {label} завершено!")
+        self.bot.send_message(chat_id, f"⏱ {label} completed!")
 
     def start_test(self, message):
         thread = threading.Thread(target=self._start_async_loop, args=(message.chat.id,))
@@ -121,20 +122,20 @@ class SpeakingTest:
 
             if task["type"] == "open":
                 self.bot.send_message(chat_id, task["text"], parse_mode="Markdown")
-                await self.send_timer(chat_id, task["prep_time"], "Время подготовки")
-                self.bot.send_message(chat_id, "🎤 Можешь говорить. Жду голосовое сообщение!")
+                await self.send_timer(chat_id, task["prep_time"], "Preparation time")
+                self.bot.send_message(chat_id, "🎤 You can talk now. I'm waiting for a voice message!")
                 self.active_users[chat_id]["can_answer"] = True
-                await self.send_timer(chat_id, task["response_time"], "Время ответа", self.active_users[chat_id]["stop_event"])
+                await self.send_timer(chat_id, task["response_time"], "Response time", self.active_users[chat_id]["stop_event"])
                 self.active_users[chat_id]["can_answer"] = False
 
             elif task["type"] == "reading":
                 self.bot.send_message(chat_id, task["text"], parse_mode="Markdown")
-                await self.send_timer(chat_id, task["reading_time"], "Время на чтение")
+                await self.send_timer(chat_id, task["reading_time"], "Time to read")
                 self.bot.send_message(chat_id, task["follow_up"], parse_mode="Markdown")
-                await self.send_timer(chat_id, task["prep_time"], "Время подготовки")
-                self.bot.send_message(chat_id, "🎤 Можешь говорить. Жду голосовое сообщение!")
+                await self.send_timer(chat_id, task["prep_time"], "Preparation time")
+                self.bot.send_message(chat_id, "🎤 You can talk now. I'm waiting for a voice message!")
                 self.active_users[chat_id]["can_answer"] = True
-                await self.send_timer(chat_id, task["response_time"], "Время ответа", self.active_users[chat_id]["stop_event"])
+                await self.send_timer(chat_id, task["response_time"], "Response time", self.active_users[chat_id]["stop_event"])
                 self.active_users[chat_id]["can_answer"] = False
 
             elif task["type"] == "listening":
@@ -143,7 +144,7 @@ class SpeakingTest:
                 with open(task["audio_path"], 'rb') as audio:
                     audio_msg = self.bot.send_audio(chat_id, audio)
                 
-                await self.send_timer(chat_id, task["audio_duration"], "Время прослушивания")
+                await self.send_timer(chat_id, task["audio_duration"], "Time to listen")
                 
                 try:
                     self.bot.delete_message(chat_id, audio_msg.message_id)
@@ -151,28 +152,32 @@ class SpeakingTest:
                     pass
                 
                 self.bot.send_message(chat_id, task["follow_up"], parse_mode="Markdown")
-                await self.send_timer(chat_id, task["prep_time"], "Время подготовки")
-                self.bot.send_message(chat_id, "🎤 Можешь говорить. Жду голосовое сообщение!")
+                await self.send_timer(chat_id, task["prep_time"], "Preparation time")
+                self.bot.send_message(chat_id, "🎤 You can talk now. I'm waiting for a voice message!")
                 self.active_users[chat_id]["can_answer"] = True
-                await self.send_timer(chat_id, task["response_time"], "Время ответа", self.active_users[chat_id]["stop_event"])
+                await self.send_timer(chat_id, task["response_time"], "Response time", self.active_users[chat_id]["stop_event"])
                 self.active_users[chat_id]["can_answer"] = False
 
         self.bot.send_message(chat_id, "✅ Speaking Section Complete.")
         self.active_users.pop(chat_id, None)
+
+        if chat_id in self.user_tests:
+            del self.user_tests[chat_id]
+
 
     def handle_voice(self, message):
         chat_id = message.chat.id
         user_state = self.active_users.get(chat_id)
 
         if not user_state:
-            self.bot.send_message(chat_id, "Сейчас не проводится задание Speaking.")
+            self.bot.send_message(chat_id, "The Speaking task is currently not being performed.")
             return
 
         if not user_state["can_answer"]:
-            self.bot.send_message(chat_id, "⛔️ Голосовое не принимается.")
+            self.bot.send_message(chat_id, "⛔️  You can't send a voice message now. Voice message is not accepted.")
             return
 
         user_state["stop_event"].set()
         user_state["can_answer"] = False
 
-        self.bot.send_message(chat_id, "🎧 Ответ получен. Спасибо!")
+        self.bot.send_message(chat_id, "🎧 Your voice message has been received. Thanks!")

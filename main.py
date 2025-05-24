@@ -15,11 +15,25 @@ def handle_voice_message(message):
     if chat_id in user_tests and isinstance(user_tests[chat_id], SpeakingTest):
         user_tests[chat_id].handle_voice(message)
 
+#################################################################################### Text message handler
+
+# new version of text handler
 @bot.message_handler(content_types=['text'])
-def start(message):
-    bot.send_message(message.from_user.id, 'Привет! Я бот для прохождения экзамена TOEFL.')
+def handle_text(message):
+    chat_id = message.chat.id
+
+    if chat_id in user_tests:
+        test = user_tests[chat_id]
+        if isinstance(test, WritingTest):
+            return test.handle_text(message)
+        # в остальных тестах текст от пользователя игнорируется
+        return
+
+    # нет активного теста — показываем меню
+    bot.send_message(chat_id, "Hello! I'm TOEFL-bot.")
     send_test_type(message)
 
+####################################################################################
 
 def send_test_type(message):
     keyboard = types.InlineKeyboardMarkup()
@@ -27,24 +41,35 @@ def send_test_type(message):
     keyboard.add(types.InlineKeyboardButton(text='Listening', callback_data='listening'))
     keyboard.add(types.InlineKeyboardButton(text='Speaking', callback_data='speaking'))
     keyboard.add(types.InlineKeyboardButton(text='Writing', callback_data='writing'))
-    bot.send_message(message.chat.id, 'Выберите тип теста:', reply_markup=keyboard)
+    bot.send_message(message.chat.id, 'Select test type:', reply_markup=keyboard)
 
 
 @bot.callback_query_handler(func=lambda call: call.data in ["reading", "listening", "speaking", "writing"])
-def callback_worker(call):
+def callback_worker(call): # delete this message after choice of section
     chat_id = call.message.chat.id
 
+    if chat_id in user_tests:
+        bot.answer_callback_query(call.id, text="❗ You have already started the test. Finish it first.")
+        bot.edit_message_reply_markup(chat_id=chat_id,
+                                 message_id=call.message.message_id,
+                                 reply_markup=None)
+        return
+
+    bot.edit_message_reply_markup(chat_id=chat_id,
+                                 message_id=call.message.message_id,
+                                 reply_markup=None)
+
     if call.data == "reading":
-        user_tests[chat_id] = ReadingTest(bot)
+        user_tests[chat_id] = ReadingTest(bot, user_tests)
         user_tests[chat_id].start_test(call.message)
     elif call.data == "listening":
-        user_tests[chat_id] = ListeningTest(bot)
+        user_tests[chat_id] = ListeningTest(bot, user_tests)
         user_tests[chat_id].start_test(call.message)
     elif call.data == "speaking":
-        user_tests[chat_id] = SpeakingTest(bot)
+        user_tests[chat_id] = SpeakingTest(bot, user_tests)
         user_tests[chat_id].start_test(call.message)
     elif call.data == "writing":
-        user_tests[chat_id] = WritingTest(bot)
+        user_tests[chat_id] = WritingTest(bot, user_tests)
         user_tests[chat_id].start_test(call.message)
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('answer_') or call.data.startswith('listen_answer_'))
@@ -68,6 +93,7 @@ def handle_confirm(call):
     chat_id = call.message.chat.id
     if chat_id in user_tests:
         user_tests[chat_id].handle_confirm(call)
+    bot.answer_callback_query(call.id)
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("q:"))
 def handle_reading_answer(call):
@@ -83,13 +109,6 @@ def start_listening(message):
 def handle_listening_answer(call):
     ListeningTest.handle_answer(call)
     
-@bot.message_handler(content_types=['text'])
-def handle_text(message):
-    chat_id = message.chat.id
-    if chat_id in user_tests and isinstance(user_tests[chat_id], WritingTest):
-        user_tests[chat_id].handle_text(message)
-    else:
-        start(message)  # Fallback to normal start if not in writing test
 
 
 if __name__ == '__main__':
