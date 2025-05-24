@@ -74,7 +74,7 @@ class WritingTest:
                 timer_msg = await self.send_timer(
                     chat_id, 
                     task["reading_time"], 
-                    "Время на чтение",
+                    "Reading time",
                     self.active_users[chat_id]["stop_event"],
                     allow_early_finish=True
                 )
@@ -114,9 +114,7 @@ class WritingTest:
                 await self.send_timer(
                     chat_id, 
                     task["writing_time"], 
-                    "Time to write", 
-                    self.active_users[chat_id]["stop_event"],
-                    allow_early_finish=True
+                    "Writing time"
                 )
                 self.active_users[chat_id]["writing"] = False
                 
@@ -134,7 +132,7 @@ class WritingTest:
                 await self.send_timer(
                     chat_id, 
                     task["writing_time"], 
-                    "Время на написание", 
+                    "Time to write:", 
                     self.active_users[chat_id]["stop_event"],
                     allow_early_finish=True
                 )

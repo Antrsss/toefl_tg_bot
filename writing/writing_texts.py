@@ -26,7 +26,7 @@ texts = [
                     "to verify that the runic alphabet is a variant of an earlier alphabet."
                 ),
                 "audio_path": "writing/writing_task_1.ogg",
-                "audio_duration": 4 * 60 + 1,
+                "audio_duration": 2 * 60 + 20,
                 "question": (
                     "✍️ *Task:* Summarize the points made in the lecture, being sure to explain how they "
                     "cast doubt on specific points made in the reading passage.\n\n"
