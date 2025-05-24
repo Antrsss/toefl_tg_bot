@@ -57,9 +57,10 @@ class WritingTest:
             task_index = self.current_task_index[chat_id]
             task = self.tasks[task_index]
 
+            # Создаем новое событие для каждого задания
             self.active_users[chat_id] = {
                 "writing": False,
-                "stop_event": asyncio.Event(),
+                "stop_event": asyncio.Event(),  # Важно: новый Event для каждого задания
                 "word_count": 0,
                 "reading_msg": None,
                 "current_task": task["type"],
@@ -67,13 +68,15 @@ class WritingTest:
             }
 
             if task["type"] == "integrated":
-                # Reading phase (можно завершить досрочно)
+                # Этап 1: Чтение (можно завершить досрочно)
                 self.active_users[chat_id]["current_phase"] = "reading"
                 reading_msg = self.bot.send_message(chat_id, task["reading_text"], parse_mode="Markdown")
                 self.active_users[chat_id]["reading_msg"] = reading_msg
+                
+                # Запускаем таймер чтения
                 timer_msg = await self.send_timer(
-                    chat_id, 
-                    task["reading_time"], 
+                    chat_id,
+                    task["reading_time"],
                     "Reading time",
                     self.active_users[chat_id]["stop_event"],
                     allow_early_finish=True
@@ -85,16 +88,18 @@ class WritingTest:
                 except Exception as e:
                     print(f"Error deleting message: {e}")
                 
-                # Listening phase (НЕЛЬЗЯ завершить досрочно)
+                # Этап 2: Аудирование (нельзя завершить досрочно)
                 self.active_users[chat_id]["current_phase"] = "listening"
-                self.bot.send_message(chat_id, "🎧 There will be an audio recording of the lecture now:", parse_mode="Markdown")
+                self.bot.send_message(chat_id, "🎧 Now listen to the lecture:", parse_mode="Markdown")
+                
                 with open(task["audio_path"], 'rb') as audio:
                     audio_msg = self.bot.send_audio(chat_id, audio)
                 
+                # Таймер аудирования (без возможности досрочного завершения)
                 await self.send_timer(
-                    chat_id, 
-                    task["audio_duration"], 
-                    "Time to listen",
+                    chat_id,
+                    task["audio_duration"],
+                    "Listening time",
                     allow_early_finish=False
                 )
                 
@@ -102,27 +107,35 @@ class WritingTest:
                     self.bot.delete_message(chat_id, audio_msg.message_id)
                 except:
                     pass
+
+                # Этап 3: Письмо (можно завершить досрочно)
+                self.active_users[chat_id]["current_phase"] = "writing"
                 
-                # Show reading text again
+                # Показываем текст для справки и вопрос
                 self.bot.send_message(chat_id, "📖 Text for reference:", parse_mode="Markdown")
                 self.bot.send_message(chat_id, task["reading_text"], parse_mode="Markdown")
-                
-                # Writing phase (можно завершить досрочно)
-                self.active_users[chat_id]["current_phase"] = "writing"
                 self.bot.send_message(chat_id, task["question"], parse_mode="Markdown")
+                
+                # Сбрасываем stop_event перед началом письма
+                self.active_users[chat_id]["stop_event"].clear()
                 self.active_users[chat_id]["writing"] = True
+                
+                # Запускаем таймер письма
                 await self.send_timer(
-                    chat_id, 
-                    task["writing_time"], 
-                    "Writing time"
+                    chat_id,
+                    task["writing_time"],
+                    "Writing time",
+                    self.active_users[chat_id]["stop_event"],
+                    allow_early_finish=True
                 )
+                
                 self.active_users[chat_id]["writing"] = False
                 
-                # Word count check
+                # Проверка количества слов
                 if self.active_users[chat_id]["word_count"] < 150:
-                    self.bot.send_message(chat_id, "⚠️ You have written less than 150 words. It is recommended to write 150-225 words.")
+                    self.bot.send_message(chat_id, "⚠️ You have written less than 150 words. Recommended: 150-225 words.")
                 elif self.active_users[chat_id]["word_count"] > 225:
-                    self.bot.send_message(chat_id, "⚠️ You have written more than 225 words. It is recommended to write 150-225 words.")
+                    self.bot.send_message(chat_id, "⚠️ You have written more than 225 words. Recommended: 150-225 words.")
 
             elif task["type"] == "discussion":
                 # Discussion task (можно завершить досрочно)
@@ -144,16 +157,13 @@ class WritingTest:
                 elif self.active_users[chat_id]["word_count"] > 150:
                     self.bot.send_message(chat_id, "⚠️ You have written more than 150 words. It is recommended to write about 120 words.")
 
-            # Переходим к следующему заданию
+            # Переход к следующему заданию
             self.current_task_index[chat_id] += 1
 
+        # Завершение секции
         self.bot.send_message(chat_id, "✅ Writing Section Complete.")
         self.active_users.pop(chat_id, None)
         self.current_task_index.pop(chat_id, None)
-
-        if chat_id in self.user_tests:
-            del self.user_tests[chat_id]
-
 
     def handle_text(self, message):
         chat_id = message.chat.id
